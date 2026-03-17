@@ -9,27 +9,27 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      # 1. Скачиваем компилятор через PowerShell (надежнее)
-      - name: Setup w64devkit
-        shell: pwsh
+      # 1. Скачиваем инструменты через curl (cmd)
+      - name: Download Tools
+        shell: cmd
         run: |
-          Invoke-WebRequest -Uri "https://github.com" -OutFile "w64devkit.zip"
-          Expand-Archive -Path "w64devkit.zip" -DestinationPath "." -Force
+          curl -L https://github.com -o w64devkit.zip
+          curl -L https://github.com -o windivert.zip
 
-      # 2. Скачиваем WinDivert через PowerShell
-      - name: Setup WinDivert
-        shell: pwsh
+      # 2. Распаковка через 7-Zip (намного надежнее Expand-Archive)
+      - name: Extract Tools
+        shell: cmd
         run: |
-          Invoke-WebRequest -Uri "https://github.com" -OutFile "windivert.zip"
-          Expand-Archive -Path "windivert.zip" -DestinationPath "." -Force
+          7z x w64devkit.zip -y
+          7z x windivert.zip -y
 
-      # 3. Компиляция (учитываем папку src и utils)
+      # 3. Компиляция (с учетом папок src и utils)
       - name: Compile Exe
         shell: cmd
         run: |
           set PATH=%CD%\w64devkit\bin;%PATH%
           
-          # Копируем либы прямо к исходникам для надежности
+          # Копируем либы к исходникам
           copy WinDivert-2.2.2-A\include\WinDivert.h src\
           copy WinDivert-2.2.2-A\x64\WinDivert.lib src\
           
@@ -39,8 +39,8 @@ jobs:
             utils/getline.c utils/repl_str.c ^
             -I. -Iutils -L. -lwindivert -lws2_32 -lwinhttp
 
-      # 4. Сборка финального архива
-      - name: Prepare Artifact
+      # 4. Финальный сборщик
+      - name: Prepare Release
         shell: cmd
         run: |
           mkdir release
@@ -51,5 +51,5 @@ jobs:
       - name: Upload
         uses: actions/upload-artifact@v4
         with:
-          name: YouTube-Fix-x64
+          name: YouTube-Fix-Binary
           path: release/
