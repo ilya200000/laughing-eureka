@@ -1,0 +1,47 @@
+name: Build GoodbyeDPI Exe
+
+on:
+  push:
+    branches: [ "master", "main" ]
+  pull_request:
+    branches: [ "master", "main" ]
+
+jobs:
+  build-windows:
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install MinGW (w64devkit)
+        run: |
+          # Скачиваем портативный набор инструментов для компиляции
+          curl -L https://github.com -o w64devkit.zip
+          Expand-Archive w64devkit.zip -DestinationPath .
+
+      - name: Download WinDivert
+        run: |
+          # Проекту нужны заголовочные файлы и либы WinDivert
+          curl -L https://github.com -o windivert.zip
+          Expand-Archive windivert.zip -DestinationPath windivert_dist
+
+      - name: Compile with Make
+        shell: cmd
+        run: |
+          // Добавляем компилятор в PATH и запускаем сборку
+          set PATH=%CD%\w64devkit\bin;%PATH%
+          
+          // Указываем пути к WinDivert (подставь свои, если в Makefile другие переменные)
+          make ^
+            WINDIVERTHEADERS=windivert_dist/WinDivert-2.2.2-A/include ^
+            WINDIVERTLIBS=windivert_dist/WinDivert-2.2.2-A/x64
+
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: GoodbyeDPI-Binary
+          path: |
+            *.exe
+            windivert_dist/WinDivert-2.2.2-A/x64/WinDivert.dll
+            windivert_dist/WinDivert-2.2.2-A/x64/WinDivert64.sys
