@@ -1,47 +1,47 @@
-name: Build GoodbyeDPI Exe
+name: Build YouTube Bypass
 
-on:
-  push:
-    branches: [ "master", "main" ]
-  pull_request:
-    branches: [ "master", "main" ]
+on: [push]
 
 jobs:
-  build-windows:
+  build:
     runs-on: windows-latest
-
     steps:
-      - name: Checkout repository
+      - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Install MinGW (w64devkit)
+      # 1. Скачиваем компилятор (вместо тяжелой студии)
+      - name: Setup w64devkit
         run: |
-          # Скачиваем портативный набор инструментов для компиляции
           curl -L https://github.com -o w64devkit.zip
           Expand-Archive w64devkit.zip -DestinationPath .
 
-      - name: Download WinDivert
+      # 2. Скачиваем WinDivert (важна версия 2.2.2-A, как в оригинале)
+      - name: Setup WinDivert
         run: |
-          # Проекту нужны заголовочные файлы и либы WinDivert
           curl -L https://github.com -o windivert.zip
           Expand-Archive windivert.zip -DestinationPath windivert_dist
 
-      - name: Compile with Make
+      # 3. Компиляция (Прямая команда без Makefile)
+      - name: Compile Exe
         shell: cmd
         run: |
-          // Добавляем компилятор в PATH и запускаем сборку
           set PATH=%CD%\w64devkit\bin;%PATH%
           
-          // Указываем пути к WinDivert (подставь свои, если в Makefile другие переменные)
-          make ^
-            WINDIVERTHEADERS=windivert_dist/WinDivert-2.2.2-A/include ^
-            WINDIVERTLIBS=windivert_dist/WinDivert-2.2.2-A/x64
+          copy windivert_dist\WinDivert-2.2.2-A\include\WinDivert.h .
+          copy windivert_dist\WinDivert-2.2.2-A\x64\WinDivert.lib .
+          
+          gcc -O3 -s -o youtube_fix.exe goodbyedpi.c blackwhitelist.c dnsredir.c fakepackets.c service.c ttltrack.c -L. -lwindivert -lws2_32 -lwinhttp
 
-      - name: Upload Artifact
+      # 4. Собираем всё в один архив для скачивания
+      - name: Prepare Artifact
+        run: |
+          mkdir release
+          copy youtube_fix.exe release\
+          copy windivert_dist\WinDivert-2.2.2-A\x64\WinDivert.dll release\
+          copy windivert_dist\WinDivert-2.2.2-A\x64\WinDivert64.sys release\
+
+      - name: Upload result
         uses: actions/upload-artifact@v4
         with:
-          name: GoodbyeDPI-Binary
-          path: |
-            *.exe
-            windivert_dist/WinDivert-2.2.2-A/x64/WinDivert.dll
-            windivert_dist/WinDivert-2.2.2-A/x64/WinDivert64.sys
+          name: Bypass-Windows-x64
+          path: release/
