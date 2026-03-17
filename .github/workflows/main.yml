@@ -1,4 +1,5 @@
-name: Build
+name: Build YouTube Bypass
+
 on: [push]
 
 jobs:
@@ -8,39 +9,44 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      # 1. Скачиваем компилятор (вместо тяжелой студии)
       - name: Setup w64devkit
+        shell: cmd
         run: |
           curl -L https://github.com -o w64devkit.zip
-          Expand-Archive w64devkit.zip -DestinationPath .
+          tar -xf w64devkit.zip
 
-      # 2. Скачиваем WinDivert (важна версия 2.2.2-A, как в оригинале)
       - name: Setup WinDivert
+        shell: cmd
         run: |
           curl -L https://github.com -o windivert.zip
-          Expand-Archive windivert.zip -DestinationPath windivert_dist
+          tar -xf windivert.zip
 
-      # 3. Компиляция (Прямая команда без Makefile)
       - name: Compile Exe
         shell: cmd
         run: |
           set PATH=%CD%\w64devkit\bin;%PATH%
           
-          copy windivert_dist\WinDivert-2.2.2-A\include\WinDivert.h .
-          copy windivert_dist\WinDivert-2.2.2-A\x64\WinDivert.lib .
+          # Копируем библиотеки WinDivert для сборки
+          copy WinDivert-2.2.2-A\include\WinDivert.h src\
+          copy WinDivert-2.2.2-A\x64\WinDivert.lib src\
           
-          gcc -O3 -s -o youtube_fix.exe goodbyedpi.c blackwhitelist.c dnsredir.c fakepackets.c service.c ttltrack.c -L. -lwindivert -lws2_32 -lwinhttp
+          # Переходим в папку src и компилируем, указывая путь к utils
+          cd src
+          gcc -O3 -s -o ../youtube_fix.exe ^
+            goodbyedpi.c blackwhitelist.c dnsredir.c fakepackets.c service.c ttltrack.c ^
+            utils/getline.c utils/repl_str.c ^
+            -I. -Iutils -L. -lwindivert -lws2_32 -lwinhttp
 
-      # 4. Собираем всё в один архив для скачивания
       - name: Prepare Artifact
+        shell: cmd
         run: |
           mkdir release
-          copy youtube_fix.exe release\
-          copy windivert_dist\WinDivert-2.2.2-A\x64\WinDivert.dll release\
-          copy windivert_dist\WinDivert-2.2.2-A\x64\WinDivert64.sys release\
+          move youtube_fix.exe release\
+          copy WinDivert-2.2.2-A\x64\WinDivert.dll release\
+          copy WinDivert-2.2.2-A\x64\WinDivert64.sys release\
 
       - name: Upload result
         uses: actions/upload-artifact@v4
         with:
-          name: Bypass-Windows-x64
+          name: YouTube-Fix-x64
           path: release/
