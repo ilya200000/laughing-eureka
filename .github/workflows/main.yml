@@ -9,34 +9,37 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      # 1. Скачиваем компилятор через PowerShell (надежнее)
       - name: Setup w64devkit
-        shell: cmd
+        shell: pwsh
         run: |
-          curl -L https://github.com -o w64devkit.zip
-          tar -xf w64devkit.zip
+          Invoke-WebRequest -Uri "https://github.com" -OutFile "w64devkit.zip"
+          Expand-Archive -Path "w64devkit.zip" -DestinationPath "." -Force
 
+      # 2. Скачиваем WinDivert через PowerShell
       - name: Setup WinDivert
-        shell: cmd
+        shell: pwsh
         run: |
-          curl -L https://github.com -o windivert.zip
-          tar -xf windivert.zip
+          Invoke-WebRequest -Uri "https://github.com" -OutFile "windivert.zip"
+          Expand-Archive -Path "windivert.zip" -DestinationPath "." -Force
 
+      # 3. Компиляция (учитываем папку src и utils)
       - name: Compile Exe
         shell: cmd
         run: |
           set PATH=%CD%\w64devkit\bin;%PATH%
           
-          # Копируем библиотеки WinDivert для сборки
+          # Копируем либы прямо к исходникам для надежности
           copy WinDivert-2.2.2-A\include\WinDivert.h src\
           copy WinDivert-2.2.2-A\x64\WinDivert.lib src\
           
-          # Переходим в папку src и компилируем, указывая путь к utils
           cd src
           gcc -O3 -s -o ../youtube_fix.exe ^
             goodbyedpi.c blackwhitelist.c dnsredir.c fakepackets.c service.c ttltrack.c ^
             utils/getline.c utils/repl_str.c ^
             -I. -Iutils -L. -lwindivert -lws2_32 -lwinhttp
 
+      # 4. Сборка финального архива
       - name: Prepare Artifact
         shell: cmd
         run: |
@@ -45,7 +48,7 @@ jobs:
           copy WinDivert-2.2.2-A\x64\WinDivert.dll release\
           copy WinDivert-2.2.2-A\x64\WinDivert64.sys release\
 
-      - name: Upload result
+      - name: Upload
         uses: actions/upload-artifact@v4
         with:
           name: YouTube-Fix-x64
